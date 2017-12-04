@@ -1,0 +1,42 @@
+\documentclass[12pt]{article}
+\usepackage{fullpage}
+\usepackage{mathtools}
+\begin{document}
+
+\title{Using deep learning to measure the strength of non-linear patterns}
+\author{Donald Hobson}
+\date{\today}
+\maketitle
+\begin{abstract}
+When data is correlated in a linear manner, then standard statistical tests can detect and measure this correlation. The aim of this project is to detect relationships in the data more complex than as A increases then B increases. Techniques involving neural networks that can detect a wide range of complex patterns are demonstrated. 
+\end{abstract}
+
+
+\section{Approach 1}
+\subsection{Method}
+It was assumed that the data came from a set of sensors $\beta_1,\cdots\beta_n$, each of which had a time series (eg temperature) $\phi(t)$ and some scalar (eg elevation or local tree cover)$\kappa$ associated with it. The first pattern that was to be detected was a linear relation between $\kappa$ and $f(\phi) = f(\phi(1),\phi(2),\cdots\phi(t_{max}))$ where $f$ was some function. As there are an infinity of possible functions to use for $f$ it was decided to find a suitable function by training a convolutional neural network on the $\phi(t)$ sequence to generate $\kappa$. To stop units or scaling making a difference to the algorithm, both $\phi(t)$ and $\kappa$ are normalized so they have a mean of 0 and a mean-square of 1. To avoid spurious correlations coming from the network memorising random data, the sensors are split into a training set and a testing set, the network attempting to learn patterns on the training set and the strength of the pattern being measured on the test set. 
+The network is trained to minimize L2 loss $mean((\kappa_p-\kappa_r)^2)$ between the predicted value $\kappa_p$ and the real value $\kappa_r$. The loss for the testing dataset must be at least $1$ if there is no pattern, due to the normalization, with this being achieved when $\kappa_p = 0$. If $\kappa$ can be perfectly predicted from $\phi(t)$ then $\kappa_p = \kappa_r$ and loss equals $0$. There is a tendency for the network to first learn any general patterns, then over-fit to random noise in the data. To help minimise this problem the error function is evaluated for the test data throughout the training process and the lowest value is taken. The whole process can be repeated.
+\subsection{Results}
+The algorithm performed well on samples of generated training data. When given random noise it output $\approx1$ and when given a strong correlation it outputs lower values. Tests on real data to follow.
+\section{Approach 2}
+\subsection{Method}
+Method 1 only indicates how patterned the data is. Suppose the data is a mixture of strongly patterned data, $\phi(t)$ such that $\kappa$ can be accurately predicted, coming from some sensors and unpatterned data, $\phi(t)$ that is unrelated to $\kappa$, from other sensors. In this case it would be usefull if the network could predict the error in its prediction $\kappa_e\geq 0$ as well as the values from before. To do this we use the error function $\frac12mean((\kappa_p-\kappa_r)^2\div \kappa_e+\kappa_e)$. This function is chosen because it is mathematically simple and again gives $1$ for no relationship and $0$ for a perfect prediction. 
+\section{Approach 3}
+Suppose you have a set $\Sigma=\lbrace s_1,s_2\cdots s_n \rbrace$ of datums. Each datum consists of two vectors chosen from vector spaces $\Phi$ and $\Psi$ respectively. So $\Sigma\subset\Phi\times\Psi$ and $s_i=(x_i,y_i) \ for\ x_i\in \Phi,y_i\in \Psi$ 
+Consider each datum to be an independant sampling of a random variable $S=(X,Y)$
+We know that $X$ and $Y$ are statistically independant if $PDF(X|Y=y)=PDF(X)$
+Let $\alpha=PDF(X=x and Y=y)$ and let $\beta=PDF(X=x)\times PDF(Y=y)$ as implicit functions of $x,y$. 
+Define $f(x,y)=\frac{\alpha}{\alpha+\beta}$
+Given $i,j$ such that $P(i=j)=\frac12$ then $$P(i=j|X=x_i,Y=y_j)=\frac{PDF(X=x_i,Y=y_j|i=j)P(i=j)}{PDF(X=x_i,Y=y_j)}=\frac{PDF(X=x_i,Y=y_i)\frac12}{\frac12(\alpha+\beta)}=\frac{\alpha}{\alpha+\beta}=f(x_i,y_j)$$
+We can then calculate the info of pairing $\nu=\lbrace^{-\log_2f\ if\ i=j}_{-\log_2(1-f)\ else}$. The expected amount of information gained about the pair $(x_i,y_j)$ by knowing if $i=j$ is $1-\nu$. The amount of info needed to say if $i=j$ given $(x_i,y_j)$ is $\nu$. $\nu=1\Rightarrow$statistical independance between $X$ and $Y$. If $nu=0$ then the product vector space can be split into disjoint subsets $A,B\in \Phi \times \Psi$ with $A\cup B=\emptyset$ Such that if $i=j$ then $P((X,Y)\in A)=1$ and if $i\neq j$ then $P((X,Y)\in B)=1$ 
+
+This is a useful metric for the distribution, how can we estimate it with acess only to a random sample from the distribution. Here we encounter a problem in that we can fit the data to a simple probability distribution with a high $\nu$ or to a highly convoluted distribution with a low $\nu$.
+We have to assume that the data is simple unless we have sufficient evidance otherwise.
+To avoid such overfiting problems, we will split the data into a training set and a testing set. During training the network is expected to learn the pattern, while the testing removes any pattern that could be explained by overfitting. Note that the network is never presented with a pair that contains training and testing data.
+\begin{eqnarray}
+\nu=-\int (\alpha\log_2f+\beta\log_2(1-f)\\=-\int \log_2(f^\alpha(1-f)^\beta)\\=\int \log_2(\frac{\alpha^\alpha \times \beta^\beta}{(\alpha+\beta)^{\alpha+\beta}})\\=\int((\alpha+\beta)\log_2(\alpha+\beta)-\alpha \log_2 \alpha-\beta \log_2 \beta)
+\end{eqnarray}
+Now suppose we are given an arbitrary pair $(x,y)$ and we want to calculate $PDF(X=x \ and \ Y=y)=\alpha$ you have a model for $\beta$. $\alpha$ can be calculated as $1-f=\frac{\beta}{\alpha+\beta}\Rightarrow\frac{1}{1-f}=\frac{\alpha+\beta}{\beta}\Rightarrow \beta(\frac{1}{1-f}-1)=\alpha$
+This means that a $PDF$ at a point can be calculated from a given set of arbitrary vectors. To do this using a recursive algorithm, each vector is split into a pair of vectors. The previous algorithm is applied to calculate $f$ from the dataset. This can then be used to calculate the $\alpha$ at a point given that the $\beta$ is already known. If the individual $x$ and $y$ componants are 1 dimentional then use any trivial probability distribution calculated from its values. Otherwise use recursion by spliting the $x$ and $y$ into yet smaller parts.
+\end{document}
+\grid
